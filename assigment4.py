@@ -2,6 +2,7 @@
 
 import matplotlib.pyplot as plt
 from collections import Counter
+import shutil
 import glob
 import os
 
@@ -9,10 +10,13 @@ import os
 #TODO posar input file com argv[1] un cop haguem acabat el programa
 input_file = "small_real_sample.fastq"
 extension = input_file[-5:]
-split_name = "PYsplit"  # TODO change name
-split_dir = 'split_seq'
+split_name = "split"
+split_dir = "split_seq"
+align_dir = "alignments"
 save_split = os.path.join(split_dir, split_name)
 nbases_trim = 20
+ref_genome = "ref/genome_yeast.fasta"
+num_align = 0
 # Per si es vol posar input file com un argument
 assert input_file is not None, 'Please, introduce the name of the input file'
 assert not input_file.isdigit(), 'Please, do not introduce numbers as input file'
@@ -22,6 +26,10 @@ try:
     os.mkdir(split_dir)
 except FileExistsError:
     print(f"The directory {split_dir} already exists.")
+try:
+    os.mkdir(align_dir)
+except FileExistsError:
+    print(f"The directory {align_dir} already exists.")
 
 
 def trim_seq_right(seq: str, trim_right: int, qualities: str = '') -> str and str and str:
@@ -89,7 +97,7 @@ plot_hist(hist)
 
 for split in glob.glob(f'{save_split}*.{extension}'):
     with open(split, 'rt') as f:
-        with open(f'{split[0:-6]}trimmed.{extension}', 'wt') as t:
+        with open(f'{split[:-6]}trimmed.{extension}', 'wt') as t:
             if extension.lower()=='fasta':
                 tag = f.readline().strip()
                 if not tag: break
@@ -103,3 +111,28 @@ for split in glob.glob(f'{save_split}*.{extension}'):
                 qualities = f.readline().strip()
             t.write(f'{tag}\n{trim_seq_right(seq,nbases_trim,qualities=qualities)}')
 
+os.system(f"bwa index {ref_genome}")
+for trim_split in glob.glob(f'{save_split}*trimmed.{extension}'):
+    os.system(f"bwa mem {ref_genome} {trim_split} > '{align_dir}{trim_split[9:-6]}.sam'")
+
+shutil.rmtree(split_dir)
+
+
+for align in glob.glob(f'{align_dir}/split*trimmed.sam'):
+    with open(f'{align_dir}/merge.sam', 'at+') as m:
+        with open(align) as a:
+            while True:
+                line = a.readline().strip()
+                if not line:
+                    break
+                elif line[0] == '@':
+                    continue
+                else:
+                    num_align += 1
+                    m.write(f'{line}\n')
+
+os.system(f"sort -k4 -n {align_dir}/merge.sam | sort -k3 > sorted_aligment.sam")
+
+print(f"{num_align} reads have been aligned with the yeast genome")
+
+shutil.rmtree(align_dir)
