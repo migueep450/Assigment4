@@ -23,7 +23,11 @@ The output folder will contain the histogram and the alignments sorted.
 
 `bash assigment4.sh <input name-file.fasta/q>`
 
-## Python
+## Executing Python script
 
 `python3 assigment.py <input name-file.fasta/q>`
 
+
+You can see the script in the following GitHub repo:
+
+https://github.com/migueep450/Assigment4.git
