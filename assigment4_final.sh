@@ -4,39 +4,33 @@
 # INPUT: a FASTA/Q file
 # OUTPUT: a SAM file with the aligned sequences from the fasta/q file
 # TO EXECUTE THE SCRIPT: bash assigment4.sh <input name-file.fasta/q>
-# FUNCTIONS(4): FROM 9 to 54
+# FUNCTIONS(4): From line 9 to 54
 
 get_uniq_trimers () {
-	<<Block_comment
-	Concatenate the same file three times. In the second time, the first base of every sequence is going to be removed. In the 
-	third time, the first and the second base of every sequence is going to be removed. Then, it extracts all the possible trimers 
-	of the file.
-	Block_comment
+	#Concatenate the same file three times. In the second time, the first base of every sequence is going to be removed.
+	#In the third time, the first and the second base of every sequence is going to be removed. 
+	#Then, it extracts all the possible trimers of the file.
 	cat $1 <(sed "s/^[ACGTNacgtn]//g" $1) <(sed "s/^[ACGTNacgtn][ACGTNacgtn]//g" $1) \
 	| grep -v '^>' | fold -3 | awk '/[AGTCNagtcn]{3}/{print}' | sort | uniq -c
 }
 
 plot_hist () {
-	<<Block_comment
-	Plot all the trimers which are obteined from the input file.
-	Block_comment
+	#Plot all the trimers which are obteined from the input file.
 	awk '{$1=sprintf("%-*s", $1, ""); gsub(" ", "=", $1); printf("%-10s%s\n", $2, $1)}' $1
 }
 
 fastq_to_fasta () {
-	<<Block_comment
-	The fastq file is converted into a fasta file
-	Block_comment
-	awk 'NR%4 == 1 {print ">" substr($0, 2)} NR%4 == 2 {print}' split_seq/$1
+	#The fastq file is converted into a fasta file
+	#Expected input:
+	#	$1 Filename of the fastq file
+	awk 'NR%4 == 1 {print ">" substr($0, 2)} NR%4 == 2 {print}' $1
 }
 
 split_fastx_file () {
-	<<Block_comment
-	Separete all the records into differente files. One record per new file.
-	The expected input:
-		$1 is the file that is going to be splitted and 
-		$2 is EXT of the file
-	Block_comment
+	#Separete all the records into differente files. One record per new file.
+	#Expected input:
+	#	$1 is the file that is going to be splitted and 
+	#	$2 is EXT of the file
 	if [ "$2" == "fasta" -o "$2" == "FASTA" ]; then
 		# Each record has two lines
 		NLINES=2
@@ -51,6 +45,7 @@ split_fastx_file () {
 
 
 FILENAME=$1
+# Get FILENAME extension
 EXT="${FILENAME##*.}"
 NTRIMBASES=20
 GENOMEFILE="ref/genome_yeast.fasta"
@@ -61,6 +56,8 @@ mkdir dummy
 mkdir split_seq 
 # Create a folder in which are going to be stored the generated SAM files
 mkdir aligments
+# This folder will contain the histogram and the aligments sorted by chromosome and position
+mkdir output
 
 
 if [ "$EXT" != "$FILENAME" ]; then
@@ -83,7 +80,7 @@ if [ "$EXT" != "$FILENAME" ]; then
 	# Get all the trimers that have the sequences from the input file
 	get_uniq_trimers $DATA > dummy/hist_data.txt
 	# Plot the abundancy trimers which are obtained from the input file
-	plot_hist dummy/hist_data.txt > hist_plot.txt
+	plot_hist dummy/hist_data.txt > output/hist_plot.txt
 	echo "The trimers histogram have been saved in the folder as trimers_hist.txt"
 	else
 		echo "The file has no extension or has not been introduced"
@@ -121,7 +118,7 @@ echo "Removing headers"
 grep -v '^@' aligments/merge_out.sam > aligments/clean_merge.sam
 
 echo "Sorting the merged sam file by position and chromosome accession number"
-sort -k4 -n aligments/clean_merge.sam | sort -k3 > sorted_aligment.sam
+sort -k4 -n aligments/clean_merge.sam | sort -k3 > output/sorted_aligment.sam
 
 # How many sequence has been aligned against the reference genome
 NALIGN=$(samtools view -c aligments/merge_out.sam) 
