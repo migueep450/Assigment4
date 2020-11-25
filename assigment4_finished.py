@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-#We create a workflows in which all the sequences has been analyzed from a fasta/q file. 
-#Each sequence is going to be aligned with the yeast genome
-#IMPUT: a FASTA/Q file
-#OUTPUT: a SAM file with the aligned sequences from the fasta/q file
-#FUNCTIONS(2): FROM 15 to 68
+# We create a workflows in which all the sequences has been analyzed from a fasta/q file. 
+# Each sequence is going to be aligned with the yeast genome
+# IMPUT: a FASTA/Q file
+# OUTPUT: a SAM file with the aligned sequences from the fasta/q file
+# TO EXECUTE THE SCRIPT: python3 assigment4.py <input name-file.fasta/q>
+# FUNCTIONS(3): From line 15 to 68
 
 import matplotlib.pyplot as plt
 from collections import Counter
@@ -12,10 +13,10 @@ import glob
 import os
 import sys
 
-def create_folder(name_folder):
-    '''
-    Create a new folder in which is going to contain some files.
-    '''
+def create_folder(name_folder: str):
+    """
+    Check if 'name_folder existst' and create a new folder if it doesn't exist.
+    """
     try:
         # Create a new direcctory
         os.mkdir(name_folder)
@@ -25,7 +26,7 @@ def create_folder(name_folder):
 	
 	
 def trim_seq_right(seq: str, trim_right: int, qualities: str = '') -> str:
-    '''
+    """
     Trims the input sequence `seq` (and the qualities if they are introduced) `trim_right` nucleotides at the enf of
     the sequence
     :param seq: string encoding a DNA sequence
@@ -33,7 +34,7 @@ def trim_seq_right(seq: str, trim_right: int, qualities: str = '') -> str:
     :param qualities: string containing sequence quality (Optional)
     :return:
         processed_seq and processed_qualities: sequence and qualities trimmed
-    '''
+    """
     # Split the sequence
     processed_seq = seq[:-trim_right]
     # Split the quality string, as long as it is not empty
@@ -43,28 +44,28 @@ def trim_seq_right(seq: str, trim_right: int, qualities: str = '') -> str:
         qualities = f"+\n{qualities}\n"
     return f"{processed_seq}\n{qualities}"
 
-def plot_hist(dict):
-    '''
-    Represent the frequencies of trimers, which are included in the sequences from the imput file, in a graph. These frequencies and the
-    trimers are introduced with a dicctionary. 
-    '''
+def plot_hist(trimers_dict: dict, folder: str = ''):
+    """
+    Represent the abundacy of trimers, which are included in the 'trimers_dict', in a graph.
+    These frequencies and the trimers are introduced with a dicctionary. 
+    """
     plt.figure(figsize=(20, 5))
     #Paint frequency bars for each trimer.
-    plt.bar(*zip(*dict.items()))
+    plt.bar(*zip(*trimers_dict.items()))
     #Set label.
     plt.xlabel("Trimers")
-    plt.ylabel("Frequency")
+    plt.ylabel("Abundacy")
     #Put the name for each bar rotated 45º.
     plt.xticks(rotation=45)
     #Save the image in png format
-    plt.savefig("trimers_hist.png")
+    plt.savefig(f"{folder}/trimers_hist.png")
     #Show the graphic created
     plt.show()
 
-def search_trimmers(seq):
-    '''
-    Return a list in which contains all the possible trimmers from the imput sequence.
-    '''
+def search_trimmers(seq: str) -> str:
+    """
+    Returns a list in which contains all the possible trimmers from the input sequence.
+    """
     return [seq[i:i+3] for i in range(len(seq)-2)]
 
 input_file = sys.argv[1]
@@ -72,6 +73,7 @@ extension = input_file[-5:]
 split_name = "split"
 split_dir = "split_seq"
 align_dir = "alignments"
+out_dir = "output"
 #Create the path for split files.
 save_split = os.path.join(split_dir, split_name)
 nbases_trim = 20
@@ -88,6 +90,7 @@ assert input_file[-5:].lower() == 'fasta' or input_file[-5:].lower() == 'fastq',
 
 create_folder(split_dir)
 create_folder(align_dir)
+create_folder(out_dir)
 
 trimers=[]
 num_seq = 0
@@ -128,7 +131,8 @@ with open(input_file, 'rt') as f:
 # Create a dictionary with all the trimers that we found in the sequences'file 
 # and count how many of each trimer there are
 hist = dict(Counter(sorted(trimers)))
-plot_hist(hist)
+print("The trimers histogram has been saved")
+plot_hist(hist, out_dir)
 
 # Extract each file which has only a sequence, from the first directory which was created at the beggining.
 # Create new files in which the sequences and the possible quality's lines are trimmed
@@ -148,7 +152,7 @@ for split in glob.glob(f'{save_split}*.{extension}'):
                 f.readline()  # Ignore '+'
                 qualities = f.readline().strip()
             # Trimmed the sequence and the quality line. Then, store them with the name of the sequence in a new file
-            t.write(f'{tag}\n{trim_seq_right(seq,nbases_trim,qualities=qualities)}')
+            t.write(f'{tag}\n{trim_seq_right(seq,nbases_trim, qualities=qualities)}')
 
 # Put the reference genome in the bwa application to align it with ours splited sequences.
 os.system(f"bwa index {ref_genome}")
@@ -177,7 +181,7 @@ for align in glob.glob(f'{align_dir}/split*trimmed.sam'):
                     m.write(f'{line}\n')
 
 # Sort all the alignments in the merged sam's file by chromosome and position
-os.system(f"sort -k4 -n {align_dir}/merge.sam | sort -k3 > sorted_aligment.sam")
+os.system(f"sort -k4 -n {align_dir}/merge.sam | sort -k3 > {out_dir}/sorted_aligment.sam")
 
 print(f"{num_align} reads have been aligned with the yeast genome")
 
